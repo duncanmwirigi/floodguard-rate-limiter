@@ -1,0 +1,41 @@
+# Local environment (never commit — copy from .env.example)
+.env
+.env.local
+.env.*.local
+
+# Go build outputs
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/bin/
+/dist/
+/vendor/
+
+# Coverage / profiling
+coverage.out
+coverage.html
+*.prof
+cpu.prof
+mem.prof
+
+# Go workspace (local only)
+go.work
+go.work.sum
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug logs
+*.log
