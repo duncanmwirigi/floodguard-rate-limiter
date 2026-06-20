@@ -3,13 +3,13 @@
     {
       "id": "acct-1001",
       "balance_cents": 50000,
-      "description": "Primary demo account — $500.00, mature (30+ days)",
+      "description": "Primary demo account — KES 500.00, mature (30+ days)",
       "trusted_devices": ["device-trusted-1001"]
     },
     {
       "id": "acct-1002",
       "balance_cents": 10000,
-      "description": "Secondary account — $100.00, mature",
+      "description": "Secondary account — KES 100.00, mature",
       "trusted_devices": []
     },
     {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ultimateprogrammer/floodguard/config"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/config"
 )
 
 func TestLoad_Defaults(t *testing.T) {

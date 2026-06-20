@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ultimateprogrammer/floodguard"
-	"github.com/ultimateprogrammer/floodguard/lock"
-	"github.com/ultimateprogrammer/floodguard/middleware"
-	"github.com/ultimateprogrammer/floodguard/ratelimit"
-	"github.com/ultimateprogrammer/floodguard/velocity"
+	"github.com/duncanmwirigi/floodguard-rate-limiter"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/lock"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/middleware"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/ratelimit"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/velocity"
 	"golang.org/x/time/rate"
 )
 

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ultimateprogrammer/floodguard/ratelimit"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/ratelimit"
 	"golang.org/x/time/rate"
 )
 

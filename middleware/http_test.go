@@ -5,9 +5,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ultimateprogrammer/floodguard"
-	"github.com/ultimateprogrammer/floodguard/middleware"
-	"github.com/ultimateprogrammer/floodguard/ratelimit"
+	"github.com/duncanmwirigi/floodguard-rate-limiter"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/middleware"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/ratelimit"
 	"golang.org/x/time/rate"
 )
 
@@ -25,7 +25,7 @@ func TestHandler_ChainOrder(t *testing.T) {
 
 	var handlerCalled bool
 	h := middleware.Handler(g, middleware.Options{
-		KeyFunc: func(r *http.Request) string { return "acct-1" },
+		KeyFunc:   func(r *http.Request) string { return "acct-1" },
 		IPKeyFunc: func(r *http.Request) string { return "10.0.0.1" },
 	})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handlerCalled = true

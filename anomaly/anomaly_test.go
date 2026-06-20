@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ultimateprogrammer/floodguard/anomaly"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/anomaly"
 )
 
 func TestDetectSpike_Sudden10x(t *testing.T) {

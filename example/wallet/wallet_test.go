@@ -5,11 +5,11 @@ import (
 	"math"
 	"testing"
 
+	"github.com/duncanmwirigi/floodguard-rate-limiter/example/wallet"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/ledger"
 	"github.com/leanovate/gopter"
 	"github.com/leanovate/gopter/gen"
 	"github.com/leanovate/gopter/prop"
-	"github.com/ultimateprogrammer/floodguard/example/wallet"
-	"github.com/ultimateprogrammer/floodguard/ledger"
 )
 
 func TestProperty_BalanceInvariants(t *testing.T) {

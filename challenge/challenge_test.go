@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ultimateprogrammer/floodguard/challenge"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/challenge"
 )
 
 func TestChallengeRequired(t *testing.T) {

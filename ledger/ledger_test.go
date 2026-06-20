@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ultimateprogrammer/floodguard/ledger"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/ledger"
 )
 
 func TestRecordTransaction_Chain(t *testing.T) {

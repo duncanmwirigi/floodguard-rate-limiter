@@ -120,13 +120,11 @@ code=$(curl -s -o /tmp/fg-insuf.json -w "%{http_code}" -X POST "$BASE_URL/withdr
   -d '{"amount_cents":99999999}')
 assert_status "05-insufficient-funds" 402 "$code" "$(cat /tmp/fg-insuf.json)"
 
-# 06 Invalid amount (isolated account)
-ACCT_INV="acct-invalid-$RUN_ID"
-trust_device "$ACCT_INV" "device-invalid"
+# 06 Invalid amount (mature account + trusted device — reaches handler validation)
 pause_velocity
 code=$(curl -s -o /tmp/fg-inv.json -w "%{http_code}" -X POST "$BASE_URL/withdraw" \
-  -H "X-Account-ID: $ACCT_INV" \
-  -H "X-Device-ID: device-invalid" \
+  -H "X-Account-ID: acct-1001" \
+  -H "X-Device-ID: device-trusted-1001" \
   -H "User-Agent: $UA" \
   -H "Accept-Language: $LANG" \
   -H "Idempotency-Key: scenario-06-$RUN_ID" \
@@ -144,10 +142,10 @@ code=$(curl -s -o /tmp/fg-noidem.json -w "%{http_code}" -X POST "$BASE_URL/withd
   -d '{"amount_cents":100}')
 assert_status "07-missing-idempotency" 400 "$code" "$(cat /tmp/fg-noidem.json)"
 
-# 08 Step-up unknown device (mature funded account, untrusted device)
+# 08 Step-up unknown device (mature acct-1002, minimal velocity history)
 pause_velocity
 code=$(curl -s -o /tmp/fg-stepup.json -w "%{http_code}" -X POST "$BASE_URL/withdraw" \
-  -H "X-Account-ID: acct-1001" \
+  -H "X-Account-ID: acct-1002" \
   -H "X-Device-ID: device-unknown" \
   -H "User-Agent: $UA" \
   -H "Accept-Language: $LANG" \
@@ -167,7 +165,7 @@ fi
 if [[ -n "${token:-}" ]]; then
   pause_velocity
   code=$(curl -s -o /tmp/fg-stepup2.json -w "%{http_code}" -X POST "$BASE_URL/withdraw" \
-    -H "X-Account-ID: acct-1001" \
+    -H "X-Account-ID: acct-1002" \
     -H "X-Device-ID: device-unknown" \
     -H "User-Agent: $UA" \
     -H "Accept-Language: $LANG" \
@@ -206,8 +204,9 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-# 09b Solve captcha (stub token) — expect 402 insufficient funds ($0 balance)
+# 09b Solve captcha (stub token) — pause avoids velocity→step-up on retry
 if [[ -n "${cap_token:-}" ]]; then
+  pause_velocity
   code=$(curl -s -o /tmp/fg-cap2.json -w "%{http_code}" -X POST "$BASE_URL/withdraw" \
     -H "X-Account-ID: $NEW_ACCT" \
     -H "X-Device-ID: device-trusted-captcha" \

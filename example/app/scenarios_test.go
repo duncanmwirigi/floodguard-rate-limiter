@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/config"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/example/app"
 	"github.com/redis/go-redis/v9"
-	"github.com/ultimateprogrammer/floodguard/config"
-	"github.com/ultimateprogrammer/floodguard/example/app"
 )
 
 func testConfig(prefix string) config.Config {

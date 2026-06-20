@@ -7,9 +7,9 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/duncanmwirigi/floodguard-rate-limiter/config"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/example/app"
 	"github.com/redis/go-redis/v9"
-	"github.com/ultimateprogrammer/floodguard/config"
-	"github.com/ultimateprogrammer/floodguard/example/app"
 )
 
 func main() {

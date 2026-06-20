@@ -16,7 +16,7 @@ Findings from auditing the original `example/main.go` withdrawal handler before 
 
 **Issue:** Request field was `amount` (ambiguous whole units vs cents) while seed balances used bare integers (`500` meaning unknown unit).
 
-**Fix:** Rename to `amount_cents` and document minor units everywhere. Seed balances as `50_000` cents ($500).
+**Fix:** Rename to `amount_cents` and document KES minor units everywhere. Seed balances as `50_000` cents (KES 500.00).
 
 **Regression test:** API contract in updated `example/main.go` uses `amount_cents int64`.
 

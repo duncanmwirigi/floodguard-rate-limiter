@@ -1,4 +1,4 @@
-// Package wallet implements balance operations in integer minor units (cents).
+// Package wallet implements balance operations in KES minor units (cents).
 // All balance-affecting writes should go through ledger.RecordTransaction.
 package wallet
 
@@ -8,7 +8,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/ultimateprogrammer/floodguard/ledger"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/ledger"
 )
 
 var (
@@ -24,7 +24,7 @@ type Account struct {
 	pendingWithdraw int64 // reserved immediately on withdrawal request
 }
 
-// NewAccount creates an account with initial balance in cents.
+// NewAccount creates an account with initial balance in KES cents.
 func NewAccount(initialCents int64) *Account {
 	return &Account{totalCents: initialCents}
 }

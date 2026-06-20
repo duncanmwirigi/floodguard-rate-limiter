@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ultimateprogrammer/floodguard/notify"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/notify"
 )
 
 func TestAfterSensitiveAction_Async(t *testing.T) {

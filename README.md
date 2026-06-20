@@ -1,4 +1,4 @@
-# floodguard
+# Floodguard
 
 [![Build](https://github.com/duncanmwirigi/floodguard-rate-limiter/actions/workflows/test.yml/badge.svg)](https://github.com/duncanmwirigi/floodguard-rate-limiter/actions/workflows/test.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/duncanmwirigi/floodguard-rate-limiter)](https://goreportcard.com/report/github.com/duncanmwirigi/floodguard-rate-limiter)
@@ -7,7 +7,7 @@
 
 **Floodguard** is an open-source Go library that protects HTTP and gRPC services from rapid or abusive traffic. It is built for high-stakes endpoints—withdrawals, bets, transfers, password resets—where duplicate or automated requests can drain accounts or degrade service for everyone else.
 
-## Why floodguard?
+## Why Floodguard?
 
 Financial and gaming APIs attract abuse that a plain rate limiter alone does not catch:
 
@@ -26,7 +26,63 @@ Each layer is swappable: use in-memory backends for development, or **Redis** fo
 go get github.com/duncanmwirigi/floodguard-rate-limiter
 ```
 
-Requires Go 1.22+ and Redis (for the example server and distributed backends).
+Requires Go 1.22+, Redis (example server), and for live scenarios: `curl` + `jq`.
+
+## Verify it works (copy-paste)
+
+**Step 1 — unit tests** (no Redis required for most packages):
+
+```bash
+cd floodguard
+go test ./...
+```
+
+**Step 2 — live integration scenarios** (two terminals):
+
+```bash
+# Terminal 1: start Redis + example server
+redis-server                          # if not already running
+cp .env.example .env
+set -a && source .env && set +a
+go run ./example
+```
+
+```bash
+# Terminal 2: run all 12 scenarios (expect 12 passed, 0 failed)
+./scripts/run-scenarios.sh
+```
+
+Or use Make:
+
+```bash
+make test              # unit tests
+make run               # start example server (Terminal 1)
+make test-scenarios    # run ./scripts/run-scenarios.sh (Terminal 2)
+```
+
+**Step 3 — manual withdraw** (trust device first, then withdraw):
+
+```bash
+# Trust this device for acct-1001
+curl -s -X POST http://localhost:8080/demo/trust-device \
+  -H "X-Account-ID: acct-1001" \
+  -H "X-Device-ID: device-trusted-1001" \
+  -H "User-Agent: FloodguardTest/1.0" \
+  -H "Accept-Language: en-US"
+
+# Withdraw KES 10.00 (1000 cents)
+curl -s -X POST http://localhost:8080/withdraw \
+  -H "X-Account-ID: acct-1001" \
+  -H "Idempotency-Key: wd-manual-001" \
+  -H "X-Device-ID: device-trusted-1001" \
+  -H "User-Agent: FloodguardTest/1.0" \
+  -H "Accept-Language: en-US" \
+  -H "Content-Type: application/json" \
+  -d '{"amount_cents":1000}'
+
+# Check balance
+curl -s http://localhost:8080/demo/balance -H "X-Account-ID: acct-1001"
+```
 
 ## Project structure
 
@@ -47,10 +103,11 @@ floodguard/
 ├── example/
 │   ├── main.go              # Runnable demo server
 │   ├── app/                 # Server wiring + integration tests
-│   ├── wallet/              # int64 cents + property tests
+│   ├── wallet/              # KES cents + property tests
 │   └── testdata/            # Demo accounts + scenario catalog
 ├── scripts/
-│   └── run-scenarios.sh     # curl-based integration test runner
+│   └── run-scenarios.sh     # curl integration runner (12 scenarios)
+├── Makefile                 # make test | run | test-scenarios
 ├── .env.example             # Configuration template
 └── PRODUCTION_READINESS.md  # Pre-launch audit checklist
 ```
@@ -108,7 +165,7 @@ Send mutating requests with an **`Idempotency-Key`** header. Account identity de
 
 ## Companion packages (Gaps 1–4)
 
-floodguard is the concurrency/abuse layer. These sibling packages close adjacent gaps:
+Floodguard is the concurrency/abuse layer. These sibling packages close adjacent gaps:
 
 | Package | Gap | Purpose |
 |---------|-----|---------|
@@ -118,7 +175,7 @@ floodguard is the concurrency/abuse layer. These sibling packages close adjacent
 | [`ledger/`](ledger/) | Insider DB access | Append-only hash-chained audit log + tamper detection |
 | [`anomaly/`](anomaly/) | Distributed botnet | Platform-wide spike detection (alert, not block) |
 | [`challenge/`](challenge/) | Distributed botnet | Conditional CAPTCHA middleware (stub verifier for hCaptcha/Turnstile) |
-| [`example/wallet/`](example/wallet/) | Business logic bugs | `int64` cents + property/regression tests |
+| [`example/wallet/`](example/wallet/) | Business logic bugs | KES cents + property/regression tests |
 
 **Recommended build order:** floodguard → wallet property tests → devicetrust + stepup → ledger → anomaly + challenge.
 
@@ -186,25 +243,36 @@ g := floodguard.New(floodguard.Config{
 
 ## Example server
 
-Copy [`.env.example`](.env.example) and load it before starting:
+Copy [`.env.example`](.env.example) and load it before starting. See **[Verify it works](#verify-it-works-copy-paste)** for the full flow.
+
+**Routes:**
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/health` | Liveness check |
+| `POST` | `/withdraw` | Protected withdrawal (requires headers below) |
+| `POST` | `/demo/trust-device` | Mark device trusted (demo/tests only) |
+| `GET` | `/demo/balance` | Read demo account balance |
+
+**Required headers for `/withdraw`:**
+
+| Header | Example | Purpose |
+|--------|---------|---------|
+| `X-Account-ID` | `acct-1001` | Account identity |
+| `Idempotency-Key` | `wd-001` | Duplicate-submit protection |
+| `X-Device-ID` | `device-trusted-1001` | Device fingerprint input |
+| `User-Agent` | `FloodguardTest/1.0` | Fingerprint input |
+| `Accept-Language` | `en-US` | Fingerprint input |
+
+Optional: `X-Step-Up-Token` (after 403 step-up), `X-Challenge-Token` + `X-Captcha-Response: valid-captcha` (after 403 CAPTCHA).
 
 ```bash
 cp .env.example .env
-set -a && source .env && set +a   # or export vars in Docker/K8s
-redis-server
+set -a && source .env && set +a
 go run ./example
 ```
 
-```bash
-curl -s -X POST http://localhost:8080/withdraw \
-  -H "X-Account-ID: acct-1001" \
-  -H "Idempotency-Key: wd-001" \
-  -H "X-Device-ID: device-abc" \
-  -H "Content-Type: application/json" \
-  -d '{"amount_cents":5000}'
-```
-
-Server logs trace each layer: rate limit → idempotency → velocity → lock → handler. See [example/main.go](example/main.go) for details.
+Server logs trace each layer: rate limit → idempotency → velocity → lock → step-up → challenge → handler.
 
 ## Configuration
 
@@ -234,7 +302,7 @@ All tunable settings load from environment variables via [`config.Load()`](confi
 | `STEPUP_TOKEN_TTL` | `10m` | Step-up challenge token lifetime |
 | `DEVICE_TRUST_STORE` | `memory` | `memory` or `redis` |
 | `NOTIFY_ENABLED` | `true` | Send alerts on sensitive actions from new devices |
-| `DEMO_ACCOUNT_BALANCES` | `acct-1001=50000,...` | Demo seed balances (cents) |
+| `DEMO_ACCOUNT_BALANCES` | `acct-1001=50000,...` | Demo seed balances (KES cents) |
 
 In your own app, import `github.com/duncanmwirigi/floodguard-rate-limiter/config` and map the struct fields into each package's config at startup — no need to fork the loader.
 
@@ -251,14 +319,16 @@ go test ./example/app/     # HTTP scenario tests (miniredis, no live server)
 
 ### Test data
 
-Demo accounts and headers are defined in [`example/testdata/accounts.json`](example/testdata/accounts.json):
+Demo accounts and headers are defined in [`example/testdata/accounts.json`](example/testdata/accounts.json).
+
+**Currency:** amounts use **KES minor units (cents)** — `50000` = KES 500.00, `1000` = KES 10.00.
 
 | Account | Balance | Notes |
 |---------|---------|-------|
-| `acct-1001` | $500.00 (50000 cents) | Primary demo account, mature |
-| `acct-1002` | $100.00 (10000 cents) | Secondary account |
-| `acct-new` | $0 | Created on first request — triggers CAPTCHA |
-| `acct-empty` | $1.00 (100 cents) | Insufficient-funds tests |
+| `acct-1001` | KES 500.00 (50000 cents) | Primary demo account, mature |
+| `acct-1002` | KES 100.00 (10000 cents) | Secondary account |
+| `acct-new` | KES 0 | Created on first request — triggers CAPTCHA |
+| `acct-empty` | KES 1.00 (100 cents) | Insufficient-funds tests |
 
 Trust a device before withdrawing from a mature account:
 
@@ -272,9 +342,9 @@ curl -s -X POST http://localhost:8080/demo/trust-device \
 
 Stub CAPTCHA token for tests: `valid-captcha` (see `challenge.StubVerifier`).
 
-### Integration scenarios
+### Integration scenarios (live server)
 
-[`example/testdata/scenarios.json`](example/testdata/scenarios.json) catalogs each scenario. Run them against a live server with the script (requires `curl` and `jq`):
+[`example/testdata/scenarios.json`](example/testdata/scenarios.json) catalogs each scenario. [`scripts/run-scenarios.sh`](scripts/run-scenarios.sh) runs them against a live server (**requires `curl`, `jq`, Redis, and the example server running**):
 
 ```bash
 # Terminal 1
@@ -284,6 +354,7 @@ go run ./example
 
 # Terminal 2
 ./scripts/run-scenarios.sh
+# Expected: ==> Results: 12 passed, 0 failed
 ```
 
 | # | Scenario | Expected |
@@ -298,10 +369,10 @@ go run ./example
 | 08 | Step-up (unknown device) | `403` + `challenge_token` |
 | 08b | Step-up with token | `200` after `X-Step-Up-Token` |
 | 09 | CAPTCHA (new account) | `403` + `X-Challenge-Required` |
-| 09b | CAPTCHA solved | passes challenge layer (stub token) |
+| 09b | CAPTCHA solved | `402` (passed challenge; KES 0 balance) |
 | 10 | Balance check | `200` + `balance_cents` |
 
-Override the server URL: `BASE_URL=http://localhost:9090 ./scripts/run-scenarios.sh`
+The script pauses 300ms between withdrawals to avoid velocity `MinInterval` collisions. Override server URL: `BASE_URL=http://localhost:9090 ./scripts/run-scenarios.sh`
 
 ## Error handling
 
@@ -332,6 +403,9 @@ Subpackages export their own sentinels (`ratelimit.ErrKeyRequired`, `lock.ErrNot
 | Resource locked | `409 Conflict` |
 | Duplicate in-flight idempotency key | `409 Conflict` |
 | Idempotent replay | `200 OK` + `X-Idempotent-Replay: true` |
+| Step-up required (unknown device) | `403 Forbidden` + `challenge_token` |
+| CAPTCHA required (new account) | `403 Forbidden` + `X-Challenge-Required` |
+| Insufficient funds | `402 Payment Required` |
 
 ## Production readiness
 

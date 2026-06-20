@@ -6,11 +6,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ultimateprogrammer/floodguard/anomaly"
-	"github.com/ultimateprogrammer/floodguard/devicetrust"
-	"github.com/ultimateprogrammer/floodguard/example/wallet"
-	"github.com/ultimateprogrammer/floodguard/ledger"
-	"github.com/ultimateprogrammer/floodguard/notify"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/anomaly"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/devicetrust"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/example/wallet"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/ledger"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/notify"
 )
 
 // Service holds demo account state and HTTP handlers.
@@ -24,7 +24,7 @@ type Service struct {
 	devices  *devicetrust.Client
 }
 
-// NewService seeds demo accounts (balances in cents).
+// NewService seeds demo accounts (balances in KES cents).
 func NewService(seed map[string]int64, devices *devicetrust.Client, notifier *notify.Notifier, anomalyDet *anomaly.Detector) *Service {
 	s := &Service{
 		accounts: make(map[string]*wallet.Account),
@@ -146,8 +146,8 @@ func (s *Service) Balance(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"account_id": accountID,
-			"balance_cents": 0,
+			"account_id":      accountID,
+			"balance_cents":   0,
 			"available_cents": 0,
 		})
 		return

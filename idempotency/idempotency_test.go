@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/idempotency"
 	"github.com/redis/go-redis/v9"
-	"github.com/ultimateprogrammer/floodguard/idempotency"
 )
 
 func TestMemoryStore_ConcurrentSameKey(t *testing.T) {
@@ -167,8 +167,8 @@ func TestClaim_TableDriven(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name       string
-		setup      func(t *testing.T, store idempotency.Store)
+		name        string
+		setup       func(t *testing.T, store idempotency.Store)
 		wantProcess bool
 		wantCached  string
 		wantFlight  bool

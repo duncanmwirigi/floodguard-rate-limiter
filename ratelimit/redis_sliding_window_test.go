@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/ratelimit"
 	"github.com/redis/go-redis/v9"
-	"github.com/ultimateprogrammer/floodguard/ratelimit"
 )
 
 func newTestRedisSlidingWindow(t *testing.T, limit int, window time.Duration) (ratelimit.Limiter, *miniredis.Miniredis) {

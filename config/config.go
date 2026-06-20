@@ -101,7 +101,7 @@ type Notify struct {
 
 // Demo seed data for the example server.
 type Demo struct {
-	AccountBalances map[string]int64 // account_id -> cents
+	AccountBalances map[string]int64 // account_id -> KES cents
 }
 
 // Load reads configuration from environment variables.

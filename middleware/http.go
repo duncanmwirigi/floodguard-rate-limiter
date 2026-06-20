@@ -19,9 +19,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ultimateprogrammer/floodguard"
-	"github.com/ultimateprogrammer/floodguard/idempotency"
-	"github.com/ultimateprogrammer/floodguard/lock"
+	"github.com/duncanmwirigi/floodguard-rate-limiter"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/idempotency"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/lock"
 )
 
 // Options configures HTTP middleware behavior.

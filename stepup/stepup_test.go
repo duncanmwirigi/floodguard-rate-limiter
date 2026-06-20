@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ultimateprogrammer/floodguard/stepup"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/stepup"
 )
 
 func TestDefaultAssessor_Matrix(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ultimateprogrammer/floodguard"
-	"github.com/ultimateprogrammer/floodguard/idempotency"
+	"github.com/duncanmwirigi/floodguard-rate-limiter"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/idempotency"
 )
 
 func TestIsDuplicateInFlight(t *testing.T) {

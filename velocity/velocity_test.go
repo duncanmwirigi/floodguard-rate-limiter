@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ultimateprogrammer/floodguard/velocity"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/velocity"
 )
 
 type denyAllRule struct{}

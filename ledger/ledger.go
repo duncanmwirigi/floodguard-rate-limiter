@@ -29,7 +29,7 @@ const (
 type Record struct {
 	ID         int64
 	AccountID  string
-	Amount     int64 // minor units (cents)
+	Amount     int64 // KES minor units (cents)
 	TxType     TxType
 	ActorID    string
 	Source     string

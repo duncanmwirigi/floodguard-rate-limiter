@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ultimateprogrammer/floodguard/idempotency"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/idempotency"
 )
 
 // ErrKeyRequired is returned when a request is missing the account or resource key.

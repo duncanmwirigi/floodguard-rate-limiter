@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ultimateprogrammer/floodguard/devicetrust"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/devicetrust"
 )
 
 func TestFingerprintStable(t *testing.T) {

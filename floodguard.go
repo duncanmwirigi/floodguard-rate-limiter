@@ -3,7 +3,7 @@
 // velocity-based anomaly detection.
 //
 // Use [New] to construct a [Guard], then either call [Guard.Protect] directly
-// or wrap handlers with [github.com/ultimateprogrammer/floodguard/middleware.Handler].
+// or wrap handlers with [github.com/duncanmwirigi/floodguard-rate-limiter/middleware.Handler].
 //
 // Request pipeline (see middleware.Handler):
 //
@@ -20,10 +20,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ultimateprogrammer/floodguard/idempotency"
-	"github.com/ultimateprogrammer/floodguard/lock"
-	"github.com/ultimateprogrammer/floodguard/ratelimit"
-	"github.com/ultimateprogrammer/floodguard/velocity"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/idempotency"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/lock"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/ratelimit"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/velocity"
 )
 
 // RejectReason explains why a request was blocked.
