@@ -26,7 +26,148 @@ Each layer is swappable: use in-memory backends for development, or **Redis** fo
 go get github.com/duncanmwirigi/floodguard-rate-limiter
 ```
 
-Requires Go 1.22+, Redis (example server), and for live scenarios: `curl` + `jq`.
+Import path: `github.com/duncanmwirigi/floodguard-rate-limiter` (subpackages: `/middleware`, `/ratelimit`, `/config`, etc.).
+
+Requires Go 1.22+, Redis (example server + production), and for live scenarios: `curl` + `jq`.
+
+## Table of contents
+
+- [Install](#install)
+- [Verify it works](#verify-it-works-copy-paste)
+- [How to use this package](#how-to-use-this-package)
+- [Project structure](#project-structure)
+- [Quickstart (minimal)](#quickstart-minimal)
+- [Companion packages](#companion-packages-gaps-14)
+- [Architecture](#architecture)
+- [Production setup (Redis)](#production-setup-redis)
+- [Middleware reference](#middleware-reference)
+- [Programmatic API (gRPC / custom)](#programmatic-api-grpc--custom)
+- [Full stack (companion packages)](#full-stack-companion-packages)
+- [Example server](#example-server)
+- [Configuration](#configuration)
+- [Testing](#testing)
+- [Error handling](#error-handling)
+- [HTTP status codes](#http-status-codes)
+- [Troubleshooting](#troubleshooting)
+- [Documentation map](#documentation-map)
+- [Production readiness](#production-readiness)
+
+## How to use this package
+
+Floodguard is a **library**, not a standalone service. You embed it in your Go HTTP (or gRPC) server around endpoints that move money, place bets, or change sensitive state.
+
+### Choose an integration path
+
+| Path | When to use | Entry point |
+|------|-------------|-------------|
+| **HTTP middleware** | Standard REST API | `middleware.Handler(guard, opts)(yourHandler)` |
+| **Programmatic** | gRPC, workers, non-HTTP | `guard.Protect()` + `guard.WithLock()` |
+| **Full stack** | Withdrawals with device trust, step-up, CAPTCHA | Compose middleware layers — see [example/app/app.go](example/app/app.go) |
+| **Example server** | Learn / demo / integration tests | `go run ./example` + `./scripts/run-scenarios.sh` |
+
+### Step 1 — Create a `Guard`
+
+**Local development** (single process, in-memory stores — no Redis):
+
+```go
+guard := floodguard.New(floodguard.Config{
+    Velocity: velocity.Config{
+        Rules: []velocity.Rule{
+            velocity.RateOverWindow{N: 5, Window: time.Minute, Label: "withdrawals"},
+        },
+    },
+})
+```
+
+**Production** (multi-instance — **Redis required**):
+
+```go
+client := redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_ADDR")})
+
+guard := floodguard.New(floodguard.Config{
+    IPRateLimiter: ipLimiter,      // ratelimit.NewRedisSlidingWindow(...)
+    RateLimiter:   accountLimiter,
+    Idempotency:   idempotency.Config{Store: idempotency.NewRedisStore(client, "myapp"), TTL: 24 * time.Hour},
+    Lock:          lock.Config{Client: lock.NewRedis(client, "myapp"), TTL: 30 * time.Second},
+    Velocity: velocity.Config{
+        Store: velocity.NewRedisStore(client, "myapp"),
+        Rules: []velocity.Rule{ /* see Velocity rules below */ },
+    },
+})
+```
+
+Or load limits from env via [`config.Load()`](config/config.go) and map fields into `floodguard.Config` (see [Configuration](#configuration)).
+
+### Step 2 — Protect an HTTP route
+
+Minimum for a withdrawal endpoint:
+
+```go
+mux.Handle("/withdraw", middleware.Handler(guard, middleware.Options{
+    Action:                "withdraw",
+    RequireLock:           true,  // serialize balance check + deduct
+    RequireIdempotencyKey: true,  // reject missing Idempotency-Key
+})(http.HandlerFunc(withdrawHandler)))
+```
+
+**Different limits per route** — create separate `middleware.Handler` instances:
+
+```go
+mux.Handle("/withdraw", middleware.Handler(guard, middleware.Options{
+    Action: "withdraw", RequireLock: true, RequireIdempotencyKey: true,
+})(withdrawHandler))
+
+mux.Handle("/bet", middleware.Handler(guard, middleware.Options{
+    Action: "bet", RequireLock: true,
+})(betHandler))
+```
+
+Tune velocity per action by setting `Options.Action` (velocity key becomes `accountID:action`).
+
+### Step 3 — What your API clients must send
+
+For mutating endpoints protected by Floodguard:
+
+| Header | Required? | Purpose |
+|--------|-----------|---------|
+| `X-Account-ID` | Yes (or custom `KeyFunc`) | Account / wallet identity |
+| `Idempotency-Key` | Recommended (`RequireIdempotencyKey: true`) | Safe retries; duplicate keys return cached response |
+| `X-Device-ID` | If using `devicetrust` / `stepup` | Device fingerprint (from your frontend cookie/localStorage) |
+| `User-Agent`, `Accept-Language` | If using device fingerprinting | Hashed into device identity |
+
+After a `403` step-up response, client retries with `X-Step-Up-Token` from the JSON body. After a CAPTCHA challenge, retry with `X-Challenge-Token` + `X-Captcha-Response`.
+
+### Step 4 — Velocity rules
+
+Built-in rules in `velocity/`:
+
+```go
+velocity.RateOverWindow{N: 3, Window: time.Minute, Label: "withdrawal attempts"}
+velocity.MinInterval{Min: 200 * time.Millisecond, Label: "withdrawal"}
+```
+
+Implement `velocity.Rule` for custom patterns (bet size anomalies, geo signals, etc.).
+
+**Flag vs block:** default `BlockOnVelocity: true` returns `429`. Set `BlockOnVelocity: false` and use `OnVelocityFlag` to feed step-up auth instead of blocking (see [example/app/app.go](example/app/app.go)).
+
+### Step 5 — Optional companion packages
+
+| Need | Package | Quick usage |
+|------|---------|-------------|
+| Stolen-credential detection | `devicetrust` | `FingerprintFromRequest(r, deviceID)` + `IsKnownDevice` |
+| OTP/2FA on risky actions | `stepup` | `stepup.Middleware(mgr, opts)(handler)` |
+| Alert owner on new device | `notify` | `notifier.AfterSensitiveAction(...)` after successful withdraw |
+| Tamper-evident audit log | `ledger` | `ledger.RecordTransaction(...)` for every balance write |
+| Platform-wide bot spike | `anomaly` | `detector.DetectSpike(...)` → alert, not block |
+| CAPTCHA on new accounts | `challenge` | `challenge.Middleware(mgr, opts)(handler)` |
+
+Recommended middleware order (outer → inner):
+
+```
+floodguard → stepup → challenge → your handler
+```
+
+See the wired example in [example/app/app.go](example/app/app.go).
 
 ## Verify it works (copy-paste)
 
@@ -58,6 +199,7 @@ Or use Make:
 make test              # unit tests
 make run               # start example server (Terminal 1)
 make test-scenarios    # run ./scripts/run-scenarios.sh (Terminal 2)
+make verify            # unit tests + reminder to run live scenarios
 ```
 
 **Step 3 — manual withdraw** (trust device first, then withdraw):
@@ -112,7 +254,9 @@ floodguard/
 └── PRODUCTION_READINESS.md  # Pre-launch audit checklist
 ```
 
-## Quickstart
+## Quickstart (minimal)
+
+Local dev with in-memory stores — no Redis:
 
 ```go
 package main
@@ -148,8 +292,9 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("/withdraw", middleware.Handler(g, middleware.Options{
-		Action:      "withdraw",
-		RequireLock: true,
+		Action:                "withdraw",
+		RequireLock:           true,
+		RequireIdempotencyKey: true,
 	})(http.HandlerFunc(withdrawHandler)))
 
 	log.Fatal(http.ListenAndServe(":8080", mux))
@@ -161,7 +306,7 @@ func withdrawHandler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-Send mutating requests with an **`Idempotency-Key`** header. Account identity defaults to **`X-Account-ID`** (falls back to client IP). Override both via `middleware.Options`.
+Account identity defaults to **`X-Account-ID`** (falls back to client IP). Idempotency defaults to **`Idempotency-Key`** header. Override via `middleware.Options.KeyFunc`, `IdempotencyKeyFunc`, etc.
 
 ## Companion packages (Gaps 1–4)
 
@@ -183,7 +328,7 @@ See [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) and [example/wallet/AUDIT
 
 ## Architecture
 
-A request passes through four layers before reaching your handler:
+A request passes through **six layers** before reaching your handler (when all options enabled):
 
 ```mermaid
 flowchart TD
@@ -214,23 +359,38 @@ flowchart TD
 | [`config/`](config/) | Environment-based configuration loader (`.env.example`) |
 | [`example/`](example/) | Runnable `POST /withdraw` demo with Redis |
 
-Storage backends implement small interfaces (`Store`, `Limiter`, `Client`) so you can swap in-memory and Redis implementations without changing handler code.
+Storage backends implement small interfaces (`Limiter`, `idempotency.Store`, `lock.Client`, `velocity.Store`) so you can swap in-memory and Redis without changing handler code.
 
-## Redis production setup
+## Production setup (Redis)
+
+Use Redis for **every** shared store when running more than one app instance:
 
 ```go
+import (
+	"time"
+
+	"github.com/duncanmwirigi/floodguard-rate-limiter"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/idempotency"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/lock"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/ratelimit"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/velocity"
+	"github.com/redis/go-redis/v9"
+)
+
 client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
 
-rateLimiter, _ := ratelimit.NewRedisSlidingWindow(client, "myapp", ratelimit.SlidingWindowConfig{
-	Limit:  100,
-	Window: time.Minute,
+ipRateLimiter, _ := ratelimit.NewRedisSlidingWindow(client, "myapp:ip", ratelimit.SlidingWindowConfig{
+	Limit: 100, Window: time.Minute,
+})
+accountRateLimiter, _ := ratelimit.NewRedisSlidingWindow(client, "myapp:acct", ratelimit.SlidingWindowConfig{
+	Limit: 10, Window: time.Minute,
 })
 
-g := floodguard.New(floodguard.Config{
+guard := floodguard.New(floodguard.Config{
 	IPRateLimiter: ipRateLimiter,
 	RateLimiter:   accountRateLimiter,
-	Idempotency: idempotency.Config{Store: idempotency.NewRedisStore(client, "myapp")},
-	Lock:        lock.Config{Client: lock.NewRedis(client, "myapp")},
+	Idempotency:   idempotency.Config{Store: idempotency.NewRedisStore(client, "myapp"), TTL: 24 * time.Hour},
+	Lock:          lock.Config{Client: lock.NewRedis(client, "myapp"), TTL: 30 * time.Second},
 	Velocity: velocity.Config{
 		Store: velocity.NewRedisStore(client, "myapp"),
 		Rules: []velocity.Rule{
@@ -240,6 +400,78 @@ g := floodguard.New(floodguard.Config{
 	},
 })
 ```
+
+Copy `.env.example` → `.env` for the example server, or map [`config.Load()`](config/config.go) into your own bootstrap.
+
+## Middleware reference
+
+`middleware.Handler(guard, middleware.Options{...})` accepts:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `Action` | `""` | Velocity label (`withdraw`, `bet`, …) |
+| `KeyFunc` | `X-Account-ID` → IP fallback | Account / wallet key |
+| `IPKeyFunc` | Client IP from request | Layer-1 rate limit key |
+| `LockKeyFunc` | Same as `KeyFunc` | Distributed lock key |
+| `IdempotencyKeyFunc` | `Idempotency-Key` header | Idempotency key source |
+| `RequireLock` | `false` | Acquire lock before handler (use `true` for balance ops) |
+| `RequireIdempotencyKey` | `false` | Reject if idempotency header missing |
+| `FailClosed` | `true` | Return `503` when Redis/store unreachable |
+| `BlockOnVelocity` | `true` | Block on velocity; `false` = flag via `OnVelocityFlag` |
+| `OnVelocityFlag` | — | Callback when velocity fires and `BlockOnVelocity: false` |
+| `Audit` | — | Structured event hook (`AuditEvent`) |
+| `Logger` | — | Human-readable layer traces |
+
+## Programmatic API (gRPC / custom)
+
+For non-HTTP handlers, call `Guard` methods directly:
+
+```go
+ctx := r.Context()
+result, err := guard.Protect(ctx, floodguard.Request{
+    Key:            accountID,
+    IPKey:          clientIP,
+    IdempotencyKey: idemKey,
+    Action:         "withdraw",
+})
+if err != nil {
+    return status.Errorf(codes.Unavailable, "protection layer error: %v", err)
+}
+if !result.Allowed {
+    switch result.Reason {
+    case floodguard.RejectCached:
+        return cachedResponse(result.CachedResponse)
+    case floodguard.RejectRateLimit:
+        return status.Error(codes.ResourceExhausted, "rate limit")
+    // ...
+    }
+}
+
+err = guard.WithLock(ctx, accountID, func(ctx context.Context) error {
+    // balance check + deduct inside lock
+    return nil
+})
+if err != nil {
+    return err
+}
+
+_ = guard.CompleteIdempotency(ctx, idemKey, responseBytes)
+```
+
+`TryLock` is non-blocking — concurrent callers get an error and should retry (HTTP middleware maps this to `409 Conflict`).
+
+## Full stack (companion packages)
+
+The [example server](example/app/app.go) wires the complete stack for a KES withdrawal API:
+
+1. **Floodguard** — rate limit, idempotency, velocity, lock  
+2. **Step-up** — `403` + token when device unknown or velocity flagged  
+3. **Challenge** — CAPTCHA for new accounts / platform spikes  
+4. **Device trust** — fingerprint + trusted device store  
+5. **Notify** — async alert on sensitive action from new device  
+6. **Wallet + ledger** — `int64` KES cents + hash-chained audit log  
+
+Run it: `go run ./example` (Redis required). Test it: `./scripts/run-scenarios.sh`.
 
 ## Example server
 
@@ -400,12 +632,38 @@ Subpackages export their own sentinels (`ratelimit.ErrKeyRequired`, `lock.ErrNot
 | IP rate limit exceeded | `429 Too Many Requests` (`ip_rate_limit`) |
 | Account rate limit exceeded | `429 Too Many Requests` (`rate_limit`) |
 | Velocity threshold exceeded | `429 Too Many Requests` |
-| Resource locked | `409 Conflict` |
+| Redis / store unreachable | `503 Service Unavailable` (when `FailClosed: true`) |
+| Resource locked (concurrent request) | `409 Conflict` |
 | Duplicate in-flight idempotency key | `409 Conflict` |
 | Idempotent replay | `200 OK` + `X-Idempotent-Replay: true` |
 | Step-up required (unknown device) | `403 Forbidden` + `challenge_token` |
 | CAPTCHA required (new account) | `403 Forbidden` + `X-Challenge-Required` |
-| Insufficient funds | `402 Payment Required` |
+| Insufficient funds (example handler) | `402 Payment Required` |
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| `503` on every request | Redis down or wrong `REDIS_ADDR` | Start Redis; check env; `FailClosed` defaults to deny |
+| `409 Conflict` on concurrent withdraws | Expected — `TryLock` is non-blocking | Client retries with backoff; only one holder at a time |
+| `403` + `challenge_token` | Unknown device or velocity flagged | Complete step-up; trust device via your auth flow |
+| `403` + `X-Challenge-Required` | New account or platform spike | Solve CAPTCHA; retry with tokens |
+| `400` missing idempotency | `RequireIdempotencyKey: true` | Client sends `Idempotency-Key` on every mutating request |
+| `bind: address already in use` | Port 8080 taken | `kill $(lsof -t -i:8080)` or `LISTEN_ADDR=:8081 go run ./example` |
+| Integration script failures | Velocity `MinInterval` between rapid curls | Script pauses 300ms; use isolated accounts per scenario |
+| Works locally, fails in prod | In-memory stores don't sync across pods | Switch all backends to Redis |
+
+## Documentation map
+
+| Document | Purpose |
+|----------|---------|
+| [README.md](README.md) | Usage guide (this file) |
+| [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) | Pre-launch audit checklist |
+| [example/wallet/AUDIT.md](example/wallet/AUDIT.md) | Business-logic regression findings |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Dev setup, CI, PR guidelines |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
+| [.env.example](.env.example) | All environment variables |
+| [example/testdata/](example/testdata/) | Demo accounts + scenario catalog |
 
 ## Production readiness
 

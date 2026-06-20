@@ -118,8 +118,8 @@ func TestRedisSlidingWindow_WindowExpiry(t *testing.T) {
 }
 
 func TestRedisSlidingWindow_ConcurrentAccess(t *testing.T) {
-	t.Parallel()
-
+	// Do not run in parallel with other tests — hammers one Redis key and is
+	// sensitive to miniredis scheduling under package-wide t.Parallel().
 	const (
 		limit      = 5
 		goroutines = 25

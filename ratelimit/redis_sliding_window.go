@@ -3,6 +3,7 @@ package ratelimit
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -14,6 +15,7 @@ type redisSlidingWindow struct {
 	prefix string
 	cfg    SlidingWindowConfig
 	script *redis.Script
+	seq    atomic.Uint64
 }
 
 // NewRedisSlidingWindow returns a Limiter backed by Redis for multi-instance deployments.
@@ -41,11 +43,12 @@ local member = ARGV[4]
 local ttl_ms = tonumber(ARGV[5])
 
 redis.call("ZREMRANGEBYSCORE", key, "0", window_start)
+redis.call("ZADD", key, now, member)
 local count = redis.call("ZCARD", key)
-if count >= limit then
+if count > limit then
+  redis.call("ZREM", key, member)
   return 0
 end
-redis.call("ZADD", key, now, member)
 redis.call("PEXPIRE", key, ttl_ms)
 return 1
 `),
@@ -62,7 +65,7 @@ func (s *redisSlidingWindow) Allow(ctx context.Context, key string) (bool, error
 
 	now := time.Now()
 	rkey := fmt.Sprintf("%s:sw:%s", s.prefix, key)
-	member := fmt.Sprintf("%d", now.UnixNano())
+	member := fmt.Sprintf("%d-%d", now.UnixNano(), s.seq.Add(1))
 	ttl := s.cfg.Window + time.Second
 
 	res, err := s.script.Run(ctx, s.client, []string{rkey},
