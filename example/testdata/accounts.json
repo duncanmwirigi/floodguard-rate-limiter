@@ -1,0 +1,51 @@
+{
+  "accounts": [
+    {
+      "id": "acct-1001",
+      "balance_cents": 50000,
+      "description": "Primary demo account — $500.00, mature (30+ days)",
+      "trusted_devices": ["device-trusted-1001"]
+    },
+    {
+      "id": "acct-1002",
+      "balance_cents": 10000,
+      "description": "Secondary account — $100.00, mature",
+      "trusted_devices": []
+    },
+    {
+      "id": "acct-new",
+      "balance_cents": 0,
+      "description": "Created on first request — triggers CAPTCHA (account age < 24h)",
+      "trusted_devices": []
+    },
+    {
+      "id": "acct-empty",
+      "balance_cents": 100,
+      "description": "Low balance for insufficient-funds tests",
+      "trusted_devices": ["device-trusted-empty"]
+    }
+  ],
+  "devices": [
+    {
+      "id": "device-trusted-1001",
+      "user_agent": "FloodguardTest/1.0",
+      "accept_language": "en-US",
+      "description": "Pre-trust via POST /demo/trust-device before withdraw"
+    },
+    {
+      "id": "device-unknown",
+      "user_agent": "FloodguardTest/1.0",
+      "accept_language": "en-US",
+      "description": "Untrusted device — triggers step-up auth on withdraw"
+    }
+  ],
+  "headers": {
+    "account": "X-Account-ID",
+    "device": "X-Device-ID",
+    "idempotency": "Idempotency-Key",
+    "step_up": "X-Step-Up-Token",
+    "challenge": "X-Challenge-Token",
+    "captcha": "X-Captcha-Response"
+  },
+  "stub_captcha_token": "valid-captcha"
+}

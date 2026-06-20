@@ -1,0 +1,143 @@
+{
+  "scenarios": [
+    {
+      "id": "01-health",
+      "name": "Health check",
+      "method": "GET",
+      "path": "/health",
+      "expect_status": 200
+    },
+    {
+      "id": "02-trust-device",
+      "name": "Mark device as trusted",
+      "method": "POST",
+      "path": "/demo/trust-device",
+      "headers": {
+        "X-Account-ID": "acct-1001",
+        "X-Device-ID": "device-trusted-1001",
+        "User-Agent": "FloodguardTest/1.0",
+        "Accept-Language": "en-US"
+      },
+      "expect_status": 200
+    },
+    {
+      "id": "03-withdraw-success",
+      "name": "Successful withdrawal (trusted device)",
+      "method": "POST",
+      "path": "/withdraw",
+      "headers": {
+        "X-Account-ID": "acct-1001",
+        "X-Device-ID": "device-trusted-1001",
+        "User-Agent": "FloodguardTest/1.0",
+        "Accept-Language": "en-US",
+        "Idempotency-Key": "scenario-03-{{run_id}}"
+      },
+      "body": {"amount_cents": 1000},
+      "expect_status": 200
+    },
+    {
+      "id": "04-idempotent-replay",
+      "name": "Idempotent replay returns cached response",
+      "method": "POST",
+      "path": "/withdraw",
+      "headers": {
+        "X-Account-ID": "acct-1001",
+        "X-Device-ID": "device-trusted-1001",
+        "User-Agent": "FloodguardTest/1.0",
+        "Accept-Language": "en-US",
+        "Idempotency-Key": "scenario-04-{{run_id}}"
+      },
+      "body": {"amount_cents": 500},
+      "repeat": 2,
+      "expect_status": 200,
+      "expect_header_on_repeat": "X-Idempotent-Replay"
+    },
+    {
+      "id": "05-insufficient-funds",
+      "name": "Withdraw more than balance",
+      "method": "POST",
+      "path": "/withdraw",
+      "headers": {
+        "X-Account-ID": "acct-1002",
+        "X-Device-ID": "device-trusted-1001",
+        "User-Agent": "FloodguardTest/1.0",
+        "Accept-Language": "en-US",
+        "Idempotency-Key": "scenario-05-{{run_id}}"
+      },
+      "body": {"amount_cents": 99999999},
+      "expect_status": 402
+    },
+    {
+      "id": "06-invalid-amount",
+      "name": "Reject zero/negative amount",
+      "method": "POST",
+      "path": "/withdraw",
+      "headers": {
+        "X-Account-ID": "acct-1001",
+        "X-Device-ID": "device-trusted-1001",
+        "User-Agent": "FloodguardTest/1.0",
+        "Accept-Language": "en-US",
+        "Idempotency-Key": "scenario-06-{{run_id}}"
+      },
+      "body": {"amount_cents": -1},
+      "expect_status": 400
+    },
+    {
+      "id": "07-missing-idempotency",
+      "name": "Reject missing Idempotency-Key",
+      "method": "POST",
+      "path": "/withdraw",
+      "headers": {
+        "X-Account-ID": "acct-1001",
+        "X-Device-ID": "device-trusted-1001",
+        "User-Agent": "FloodguardTest/1.0",
+        "Accept-Language": "en-US"
+      },
+      "body": {"amount_cents": 100},
+      "expect_status": 400
+    },
+    {
+      "id": "08-step-up-unknown-device",
+      "name": "Step-up required for unknown device",
+      "method": "POST",
+      "path": "/withdraw",
+      "headers": {
+        "X-Account-ID": "acct-1001",
+        "X-Device-ID": "device-unknown",
+        "User-Agent": "FloodguardTest/1.0",
+        "Accept-Language": "en-US",
+        "Idempotency-Key": "scenario-08-{{run_id}}"
+      },
+      "body": {"amount_cents": 100},
+      "expect_status": 403,
+      "expect_json_field": "challenge_token"
+    },
+    {
+      "id": "09-captcha-new-account",
+      "name": "CAPTCHA required for brand-new account",
+      "method": "POST",
+      "path": "/withdraw",
+      "headers": {
+        "X-Account-ID": "acct-scenario-new",
+        "X-Device-ID": "device-trusted-1001",
+        "User-Agent": "FloodguardTest/1.0",
+        "Accept-Language": "en-US",
+        "Idempotency-Key": "scenario-09-{{run_id}}"
+      },
+      "body": {"amount_cents": 100},
+      "expect_status": 403,
+      "expect_response_header": "X-Challenge-Required"
+    },
+    {
+      "id": "10-balance-check",
+      "name": "Read demo balance",
+      "method": "GET",
+      "path": "/demo/balance",
+      "headers": {
+        "X-Account-ID": "acct-1001"
+      },
+      "expect_status": 200,
+      "expect_json_field": "balance_cents"
+    }
+  ]
+}
