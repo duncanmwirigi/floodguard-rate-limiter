@@ -1,11 +1,11 @@
 # floodguard
 
-[![Build](https://github.com/ultimateprogrammer/floodguard/actions/workflows/test.yml/badge.svg)](https://github.com/ultimateprogrammer/floodguard/actions/workflows/test.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ultimateprogrammer/floodguard)](https://goreportcard.com/report/github.com/ultimateprogrammer/floodguard)
+[![Build](https://github.com/duncanmwirigi/floodguard-rate-limiter/actions/workflows/test.yml/badge.svg)](https://github.com/duncanmwirigi/floodguard-rate-limiter/actions/workflows/test.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/duncanmwirigi/floodguard-rate-limiter)](https://goreportcard.com/report/github.com/duncanmwirigi/floodguard-rate-limiter)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Go Reference](https://pkg.go.dev/badge/github.com/ultimateprogrammer/floodguard.svg)](https://pkg.go.dev/github.com/ultimateprogrammer/floodguard)
+[![Go Reference](https://pkg.go.dev/badge/github.com/duncanmwirigi/floodguard-rate-limiter.svg)](https://pkg.go.dev/github.com/duncanmwirigi/floodguard-rate-limiter)
 
-**floodguard** is an open-source Go library that protects HTTP and gRPC services from rapid or abusive traffic. It is built for high-stakes endpoints—withdrawals, bets, transfers, password resets—where duplicate or automated requests can drain accounts or degrade service for everyone else.
+**Floodguard** is an open-source Go library that protects HTTP and gRPC services from rapid or abusive traffic. It is built for high-stakes endpoints—withdrawals, bets, transfers, password resets—where duplicate or automated requests can drain accounts or degrade service for everyone else.
 
 ## Why floodguard?
 
@@ -23,7 +23,7 @@ Each layer is swappable: use in-memory backends for development, or **Redis** fo
 ## Install
 
 ```bash
-go get github.com/ultimateprogrammer/floodguard
+go get github.com/duncanmwirigi/floodguard-rate-limiter
 ```
 
 Requires Go 1.22+ and Redis (for the example server and distributed backends).
@@ -65,10 +65,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ultimateprogrammer/floodguard"
-	"github.com/ultimateprogrammer/floodguard/middleware"
-	"github.com/ultimateprogrammer/floodguard/ratelimit"
-	"github.com/ultimateprogrammer/floodguard/velocity"
+	"github.com/duncanmwirigi/floodguard-rate-limiter"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/middleware"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/ratelimit"
+	"github.com/duncanmwirigi/floodguard-rate-limiter/velocity"
 	"golang.org/x/time/rate"
 )
 
@@ -236,7 +236,7 @@ All tunable settings load from environment variables via [`config.Load()`](confi
 | `NOTIFY_ENABLED` | `true` | Send alerts on sensitive actions from new devices |
 | `DEMO_ACCOUNT_BALANCES` | `acct-1001=50000,...` | Demo seed balances (cents) |
 
-In your own app, import `github.com/ultimateprogrammer/floodguard/config` and map the struct fields into each package's config at startup — no need to fork the loader.
+In your own app, import `github.com/duncanmwirigi/floodguard-rate-limiter/config` and map the struct fields into each package's config at startup — no need to fork the loader.
 
 ## Testing
 

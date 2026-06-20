@@ -8,7 +8,7 @@ Thank you for your interest in contributing to floodguard. This document covers 
 2. Clone the repository and enter the module root:
 
    ```bash
-   git clone https://github.com/ultimateprogrammer/floodguard.git
+   git clone https://github.com/duncanmwirigi/floodguard-rate-limiter.git
    cd floodguard
    ```
 

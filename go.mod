@@ -1,4 +1,4 @@
-module github.com/ultimateprogrammer/floodguard
+module github.com/duncanmwirigi/floodguard-rate-limiter
 
 go 1.22
 

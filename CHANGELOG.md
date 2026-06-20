@@ -39,5 +39,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First public release.
 
-[Unreleased]: https://github.com/ultimateprogrammer/floodguard/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/ultimateprogrammer/floodguard/releases/tag/v0.1.0
+[Unreleased]: https://github.com/duncanmwirigi/floodguard-rate-limiter/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/duncanmwirigi/floodguard-rate-limiter/releases/tag/v0.1.0
